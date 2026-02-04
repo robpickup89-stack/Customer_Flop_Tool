@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Reflection;
 
 namespace MultiSiteTempRunner;
 
@@ -78,6 +79,21 @@ public static class FileHelper
     /// Checks if the default flop files zip exists.
     /// </summary>
     public static bool DefaultFlopFilesExist => File.Exists(DefaultFlopFilesPath);
+
+    /// <summary>
+    /// Extracts the embedded default_Flop_Files.zip to the application directory.
+    /// </summary>
+    public static void ExtractEmbeddedDefaultFlopFiles()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream("default_Flop_Files.zip");
+
+        if (stream == null)
+            return;
+
+        using var fileStream = File.Create(DefaultFlopFilesPath);
+        stream.CopyTo(fileStream);
+    }
 
     /// <summary>
     /// Creates or rebuilds a site's temp folder.
