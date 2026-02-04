@@ -301,8 +301,8 @@ public class SitePanel : UserControl
         {
             Log($"Decrypting: {Path.GetFileName(filePath)}");
 
-            EnsureTempExists();
-            string tempPath = FileHelper.GetSiteTempPath(_siteName);
+            // Always rebuild temp folder to ensure default_Flop_Files.zip is extracted first
+            string tempPath = FileHelper.BuildSiteTemp(_siteName, Log);
 
             byte[] zipData = EncryptionHelper.DecryptZipFromFile(filePath, password);
             FileHelper.ExtractZipToFolder(zipData, tempPath, Log);
