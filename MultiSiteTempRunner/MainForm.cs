@@ -9,9 +9,9 @@ public class MainForm : Form
     private const string DefaultPassword = "peek";
 
     private TextBox _passwordTextBox = null!;
+    private CheckBox _showPasswordCheckBox = null!;
     private Button _runAllButton = null!;
     private Button _clearAllButton = null!;
-    private Label _warningLabel = null!;
     private TabControl _tabControl = null!;
     private readonly List<SitePanel> _sitePanels = new();
 
@@ -19,7 +19,8 @@ public class MainForm : Form
     {
         InitializeComponent();
         SetIcon();
-        CheckDefaultFlopFiles();
+        EnsureDefaultFlopFilesExtracted();
+        BuildAllTemps();
     }
 
     private void InitializeComponent()
@@ -35,28 +36,13 @@ public class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             RowStyles =
             {
-                new RowStyle(SizeType.AutoSize),    // Warning banner
                 new RowStyle(SizeType.AutoSize),    // Control bar
                 new RowStyle(SizeType.Percent, 100) // Tab control
             },
             Padding = new Padding(10)
-        };
-
-        // Warning banner (hidden by default)
-        _warningLabel = new Label
-        {
-            Text = "⚠ WARNING: default_Flop_Files.zip not found! Building temp folders will not include default files.",
-            Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(255, 243, 205),
-            ForeColor = Color.FromArgb(133, 100, 4),
-            Font = new Font(Font.FontFamily, 10, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleCenter,
-            Padding = new Padding(10),
-            Visible = false,
-            AutoSize = true
         };
 
         // Top control bar
@@ -80,8 +66,16 @@ public class MainForm : Form
             Width = 200,
             UseSystemPasswordChar = true,
             Text = DefaultPassword,
-            Margin = new Padding(0, 3, 20, 0)
+            Margin = new Padding(0, 3, 5, 0)
         };
+
+        _showPasswordCheckBox = new CheckBox
+        {
+            Text = "Show",
+            AutoSize = true,
+            Margin = new Padding(0, 5, 15, 0)
+        };
+        _showPasswordCheckBox.CheckedChanged += ShowPassword_CheckedChanged;
 
         _runAllButton = new Button
         {
@@ -101,6 +95,7 @@ public class MainForm : Form
 
         controlBar.Controls.Add(passwordLabel);
         controlBar.Controls.Add(_passwordTextBox);
+        controlBar.Controls.Add(_showPasswordCheckBox);
         controlBar.Controls.Add(_runAllButton);
         controlBar.Controls.Add(_clearAllButton);
 
@@ -127,10 +122,19 @@ public class MainForm : Form
             _sitePanels.Add(sitePanel);
         }
 
+        // Create Tools tab for Create Encrypted Zip
+        var toolsTabPage = new TabPage("Tools")
+        {
+            Name = "Tools"
+        };
+        var toolsPanel = new ToolsPanel(GetPassword);
+        toolsPanel.Dock = DockStyle.Fill;
+        toolsTabPage.Controls.Add(toolsPanel);
+        _tabControl.TabPages.Add(toolsTabPage);
+
         // Add controls to main layout
-        mainLayout.Controls.Add(_warningLabel, 0, 0);
-        mainLayout.Controls.Add(controlBar, 0, 1);
-        mainLayout.Controls.Add(_tabControl, 0, 2);
+        mainLayout.Controls.Add(controlBar, 0, 0);
+        mainLayout.Controls.Add(_tabControl, 0, 1);
 
         Controls.Add(mainLayout);
     }
@@ -151,9 +155,25 @@ public class MainForm : Form
         }
     }
 
-    private void CheckDefaultFlopFiles()
+    private void EnsureDefaultFlopFilesExtracted()
     {
-        _warningLabel.Visible = !FileHelper.DefaultFlopFilesExist;
+        if (!FileHelper.DefaultFlopFilesExist)
+        {
+            FileHelper.ExtractEmbeddedDefaultFlopFiles();
+        }
+    }
+
+    private void BuildAllTemps()
+    {
+        foreach (var sitePanel in _sitePanels)
+        {
+            sitePanel.BuildTemp();
+        }
+    }
+
+    private void ShowPassword_CheckedChanged(object? sender, EventArgs e)
+    {
+        _passwordTextBox.UseSystemPasswordChar = !_showPasswordCheckBox.Checked;
     }
 
     private string GetPassword()
@@ -189,7 +209,7 @@ public class MainForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         base.OnFormClosing(e);
-        // Optionally clean up temp folders on exit - commented out for user data persistence
-        // FileHelper.ClearAllTemps(_ => { });
+        // Clean up all temp folders on exit
+        FileHelper.ClearAllTemps(_ => { });
     }
 }

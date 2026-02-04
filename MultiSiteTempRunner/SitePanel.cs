@@ -12,12 +12,9 @@ public class SitePanel : UserControl
     private readonly Func<string> _getPassword;
 
     private TextBox _tempPathTextBox = null!;
-    private Button _buildTempButton = null!;
     private Button _loadZipButton = null!;
-    private Button _createZipButton = null!;
     private Button _runExeButton = null!;
     private Button _clearTempButton = null!;
-    private CheckBox _includeSubfoldersCheckBox = null!;
     private Panel _dropZone = null!;
     private Label _dropZoneLabel = null!;
     private ListBox _logListBox = null!;
@@ -88,14 +85,8 @@ public class SitePanel : UserControl
             Padding = new Padding(0, 5, 0, 10)
         };
 
-        _buildTempButton = new Button { Text = "Build Temp", Width = 100 };
-        _buildTempButton.Click += BuildTemp_Click;
-
         _loadZipButton = new Button { Text = "Load Encrypted Zip", Width = 130 };
         _loadZipButton.Click += LoadZip_Click;
-
-        _createZipButton = new Button { Text = "Create Encrypted Zip", Width = 140 };
-        _createZipButton.Click += CreateZip_Click;
 
         _runExeButton = new Button { Text = "Run (.exe)", Width = 90 };
         _runExeButton.Click += RunExe_Click;
@@ -103,19 +94,9 @@ public class SitePanel : UserControl
         _clearTempButton = new Button { Text = "Clear Temp", Width = 90 };
         _clearTempButton.Click += ClearTemp_Click;
 
-        _includeSubfoldersCheckBox = new CheckBox
-        {
-            Text = "Include Subfolders",
-            AutoSize = true,
-            Margin = new Padding(10, 5, 0, 0)
-        };
-
-        buttonsPanel.Controls.Add(_buildTempButton);
         buttonsPanel.Controls.Add(_loadZipButton);
-        buttonsPanel.Controls.Add(_createZipButton);
         buttonsPanel.Controls.Add(_runExeButton);
         buttonsPanel.Controls.Add(_clearTempButton);
-        buttonsPanel.Controls.Add(_includeSubfoldersCheckBox);
 
         // Row 3: Drop zone
         _dropZone = new Panel
@@ -195,20 +176,6 @@ public class SitePanel : UserControl
 
     #region Button Event Handlers
 
-    private void BuildTemp_Click(object? sender, EventArgs e)
-    {
-        try
-        {
-            Log("Building temp folder...");
-            FileHelper.BuildSiteTemp(_siteName, Log);
-            Log("Temp folder built successfully");
-        }
-        catch (Exception ex)
-        {
-            Log($"ERROR: {ex.Message}");
-        }
-    }
-
     private void LoadZip_Click(object? sender, EventArgs e)
     {
         string password = _getPassword();
@@ -230,66 +197,6 @@ public class SitePanel : UserControl
         if (openDialog.ShowDialog() == DialogResult.OK)
         {
             LoadEncryptedZip(openDialog.FileName, password);
-        }
-    }
-
-    private void CreateZip_Click(object? sender, EventArgs e)
-    {
-        string password = _getPassword();
-        if (string.IsNullOrEmpty(password))
-        {
-            Log("ERROR: Password is required for encryption");
-            MessageBox.Show("Please enter a password in the global password field.", "Password Required",
-                MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
-        using var folderDialog = new FolderBrowserDialog
-        {
-            Description = "Select folder containing configuration files",
-            UseDescriptionForTitle = true
-        };
-
-        if (folderDialog.ShowDialog() == DialogResult.OK)
-        {
-            try
-            {
-                Log($"Creating encrypted zip from: {folderDialog.SelectedPath}");
-
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
-                string outputFileName = $"{_siteName}_Config_{timestamp}.zip.enc";
-
-                using var saveDialog = new SaveFileDialog
-                {
-                    Title = "Save Encrypted Zip",
-                    Filter = "Encrypted Zip (*.zip.enc)|*.zip.enc",
-                    FileName = outputFileName
-                };
-
-                if (saveDialog.ShowDialog() == DialogResult.OK)
-                {
-                    var missingFiles = FileHelper.CreateEncryptedZip(
-                        folderDialog.SelectedPath,
-                        saveDialog.FileName,
-                        password,
-                        Log);
-
-                    if (missingFiles.Count > 0)
-                    {
-                        Log($"Missing files: {string.Join(", ", missingFiles.Take(5))}{(missingFiles.Count > 5 ? "..." : "")}");
-                    }
-
-                    Log("Encrypted zip created successfully");
-                    MessageBox.Show($"Encrypted zip saved to:\n{saveDialog.FileName}", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"ERROR: {ex.Message}");
-                MessageBox.Show($"Failed to create encrypted zip:\n{ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
     }
 
@@ -433,7 +340,7 @@ public class SitePanel : UserControl
             return;
         }
 
-        var executables = FileHelper.FindExecutables(tempPath, _includeSubfoldersCheckBox.Checked);
+        var executables = FileHelper.FindExecutables(tempPath, true);
 
         if (executables.Count == 0)
         {
@@ -462,6 +369,23 @@ public class SitePanel : UserControl
             {
                 Log($"ERROR launching '{Path.GetFileName(exePath)}': {ex.Message}");
             }
+        }
+    }
+
+    /// <summary>
+    /// Builds this site's temp folder.
+    /// </summary>
+    public void BuildTemp()
+    {
+        try
+        {
+            Log("Building temp folder...");
+            FileHelper.BuildSiteTemp(_siteName, Log);
+            Log("Temp folder built successfully");
+        }
+        catch (Exception ex)
+        {
+            Log($"ERROR: {ex.Message}");
         }
     }
 
